@@ -1,0 +1,11 @@
+price rooms tla lot.size address yrbuilt ImmoScout24.Code
+645000 5.5 162 353 "Aachstrasse 6, 8586 Erlen, TG" 2014 3323603
+698000 5 150 200 "Kronenwiesweg, 8636 Wald, ZH" 1848 3381365
+610000 4.5 142 262 "Buebenloostrasse 29, 9500 Wil, SG" 1971 3357620
+1190000 10 290 653 "Meisenstrasse 13, 9113 Degersheim, SG" 1978 3354595
+570000 3.5 101 190 "Saumstrasse, 9506 Lommis, TG" 2014 2895596
+890000 4.5 142 998 "Brenden 28, 9050 Appenzell, AI" 1977 3386654
+745000 4.5 160 488 "9658 Wildhaus, SG" 2013 3028933
+1480000 8 240 811 "Herisauerstrasse 53,9200 Gossau, SG" 1876 3175223
+1880000 6.5 225 555 "Almendsberg 1485, 9428 Walzenhausen, AR" 2014 3327969
+450000 5.5 140 337 "9414 Schachen, AR" 1995 3337234
