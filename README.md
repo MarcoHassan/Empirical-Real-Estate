@@ -36,7 +36,22 @@ Finally I plot the price in the city through the leaflet package that allows to 
 ![image](https://user-images.githubusercontent.com/42472072/52441190-bb259780-2b28-11e9-8804-6d8a83d5fd7c.png)
 
 
+
 # Assignment 3
 
+Contains standard panel regression controlling for time fixed effects and state fixed effects in german Budesländer.
+
 # Assignment 4
+
+Given a map in .shp format available uploaded in the directory and a dataset for the different swiss cantons I modelled a knn-neighbour model to capture the spatial deopendencies in for spillover effects among the regions.
+
+
+![image](https://user-images.githubusercontent.com/42472072/52441579-b1506400-2b29-11e9-9987-b6c078145e42.png)
+
+
+Based on this I manually programmed a spatial autocorrelated model and I calculated the effect of an exogenous effect of a population growth shift in some northern eastern canton.
+
+I plotted subsequently the spillover effect of such a growth rate shift in the region.
+
+![image](https://user-images.githubusercontent.com/42472072/52441808-58350000-2b2a-11e9-826b-ad7a3d574674.png)
 
