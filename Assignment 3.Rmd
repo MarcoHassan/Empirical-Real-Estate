@@ -1,0 +1,129 @@
+---
+title: "Assignment 3"
+output: html_notebook
+---
+
+Libraries
+```{r}
+library(plm)
+library(ggplot2)
+```
+
+
+Import Data
+```{r}
+data <- read.csv("~/Desktop/Assignments - Empirical Real Estate/Assignment 3/Bulwien_Gesa.txt", header = T, sep = "")
+```
+
+
+==========
+Exercise 1
+==========
+
+
+Create laged rent
+```{r}
+data <- pdata.frame(data, index=c("City", "Jahr"))
+
+data$rent_lag <- lag(data$rent, 1)
+data$stock_lag <- lag(data$stock, 1)
+
+```
+
+Run panel regression to test the presence of fixed effects
+```{r}
+
+fit_ols <- lm(rent ~ rent_lag + stock_lag + stock + v, data = data)
+
+summary(fit_ols)
+
+
+fit_panel <- plm(rent ~ rent_lag + stock_lag + stock + v, data = data, model = "within")
+
+summary(fit_panel)
+
+fixef(fit_panel, type = "level")
+```
+
+
+Create Rent factor variable for different rent contract types
+```{r}
+
+panel_rent_type <- plm(log(rent) ~ log(rent_lag) + log(stock_lag) + log(stock) + log(v) + rent_lag:City, data = data, model = "within")
+
+summary(panel_rent_type)
+
+```
+
+Controlling for both times and city fixed effects
+```{r}
+panel_rent_times <- plm(log(rent) ~ log(rent_lag) + log(stock_lag) + log(stock) + log(v) + rent_lag:City, data = data, effect = "twoways")
+
+summary(panel_rent_times)
+
+```
+
+
+==========
+Exercise 2
+==========
+
+Select the subset Frankfurt, Hamburg, Berlin, Stuttgart
+```{r}
+data_sub <- data[data$City %in% c("Frankfurt.(Main)", "Hamburg", "Berlin", "Stuttgart"), ]
+
+data_sub$City <- factor(data_sub$City) #so that the City variables get the new levels argument
+```
+
+Regression on lagged vacancy
+```{r}
+
+panel_sub <- plm(log(v) ~ log(lag(v,1)), data = data_sub, effect = "twoways")
+
+summary(panel_sub)
+
+fixef(panel_sub)
+
+resi <- residuals(panel_sub)
+
+data_sub <- data_sub[-which(data_sub$Jahr=="1990"),]
+
+data_sub$fit <- data_sub$v - resi 
+data_sub$residuals <- resi
+
+```
+
+Plot Vacancy rate vs. Fitted value
+```{r}
+ggplot(data_sub, aes(x = Jahr)) + geom_point(aes(y = fit), color ="darkblue", alpha = 0.3) + geom_point(aes(y = v), color ="red", alpha =0.3) +  facet_wrap(~ City) +  scale_x_discrete("Cut", labels = abbreviate)+ labs(title = "Realization vs. Prediction", x ="Year" , y="Realization and Prediction") + theme_bw() + scale_x_discrete(breaks = c("1990", "1995", "2000", "2005"))
+```
+
+Using Normal plots
+```{r}
+par(mfrow= c(2,2))
+for (i in levels(data_sub$City)){
+  
+  dat <- data_sub[data_sub$City %in% i, c("v", "Jahr", "fit")]
+  
+  plot(dat$v ~ dat$Jahr, type = "p", color = "red", ylab = "Realized vs. Predicted", xlab ="Jahr")
+  par(new=T)
+  plot(dat$fit ~ dat$Jahr, type = "p", color = "blue", axes = F, ylab = "", xlab = "")
+  title(i)
+}
+```
+
+
+
+Use the tapply() function to compute the root mean squared error (RMSE) for each city. Remember that you can program a function in tapply "on the fly" using tapply(numeric variable, categorical variable, function(x) .).
+
+```{r}
+RMSE_fun <- function(x){
+  rmse <- sqrt(sum(x**2)/length(x))
+}
+
+RMSE <- tapply(data_sub$residuals, data_sub$City, RMSE_fun)
+RMSE
+```
+
+
+

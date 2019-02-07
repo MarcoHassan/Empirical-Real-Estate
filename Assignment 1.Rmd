@@ -1,0 +1,108 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+==========
+Exercise 1
+==========
+
+Import Dataset
+```{r}
+Dataset <- read.csv("~/Desktop/Assignments - Empirical Real Estate/Assignment 1/ACC_data.txt", sep="")
+```
+
+Data_Subset Method 1
+```{r}
+Data_Subset_1 <- Dataset[Dataset$State.Province.Country== "North Carolina, USA" | Dataset$State.Province.Country== "South Carolina, USA",] 
+```
+
+
+Data Subset Method 2
+```{r}
+Data_Subset_2 <- Dataset[Dataset$State.Province.Country %in% c("North Carolina, USA", "South Carolina, USA"),]
+```
+
+Compute the 90th quantile of properties located in Tallahassee or Athens
+```{r}
+## Select Data for the two cities
+Data_Tal_Athens <- Dataset[Dataset$City %in% c("Tallahassee", "Athens"), ]
+
+#Compute the desired quantile
+quantile(Data_Tal_Athens$Size, 0.9)
+```
+
+==========
+Exercise 2
+==========
+
+Sort data for size in each state
+```{r}
+## Compute the mean size per province and sort it in decreasing order
+price_by_state <- sort(tapply(Dataset$Size, Dataset$State.Province.Country, mean), decreasing = T) 
+
+## Expand the margins so that the x-label fit the graphed space and select the las parameter to display the label perpendicular to the axis.
+par(mar=c(9,4,4,2))
+barplot(price_by_state, main = "Average Property Size by State", ylab ="Price", las = 2)
+
+```
+
+
+=====
+Exercise 3
+=====
+
+Import the geographic dataset
+```{r}
+SG_data <- read.csv("~/Desktop/Assignments - Empirical Real Estate/Assignment 1/SGdata.txt", sep = " ", header = T)
+
+```
+
+Charge library
+```{r}
+library(ggmap)
+library(ggplot2)
+library(leaflet)
+```
+
+
+
+Obtain Geocodes
+```{r}
+SG_data$longitude <- NA # Create longitude vector
+
+SG_data$latitude <- NA # Create latitude vector
+
+suppressWarnings(for (i in 1:length(SG_data)){
+  SG_data$longitude[i] <- geocode(as.character(SG_data$address[i]), source = "dsk")$lon
+  SG_data$latitude[i] <- geocode(as.character(SG_data$address[i]), source = "dsk")$lat
+}) #search for the geocode for a given street address.
+```
+
+
+Get the location map for the properties
+```{r}
+#define a color scale for each point observation on the yellow to red scale.
+help <- colorNumeric("YlOrRd", NULL, na.color = "transparent") 
+
+#import the leaflet java map, add maps labels, change map type, set the starting viewpoint, add circles for each data point and specify their color and scale by the price of the observation
+SG_map <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles 
+  setView( lng = mean(SG_data$longitude, na.rm =T)
+            , lat = mean(SG_data$latitude, na.rm = T)
+            , zoom = 10) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircles(lng = SG_data$longitude, lat = SG_data$latitude, radius = SG_data$price/1000,
+             color = help(SG_data$price), fillOpacity = 0.8 ,fillColor = help(SG_data$price)) %>%
+  addLegend(position = "topleft", pal = help, values = SG_data$price/10**6, 
+            title = "Price in Mio.")
+
+SG_map
+
+```
+
+
+
+
+
+

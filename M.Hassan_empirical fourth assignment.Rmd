@@ -1,0 +1,252 @@
+---
+title: "Marco Hassan; Empirical Real Estate fourth Assignment"
+output: html_notebook
+---
+
+
+Import required packages
+
+```{r}
+library(rgdal) # package for plotting maps that come as shape files (.shp files)
+library(spdep) # spdep = spatial dependence, possible to estimate spatial models and compute distance measures.
+```
+
+
+Import Data
+
+```{r}
+dat <- read.table("~/Desktop/Assignments - Empirical Real Estate/Assignment 4/CH_Daten.txt", header = T)
+# Swiss house price data set for 106 MS regions:
+# dlhp: difflog house prices = house price growth rate
+# dlpop: population growth
+# dlstock: growth in the housing stock
+# v: vacancy rate
+# udl: undevelopable land. Land that cannot be developed because of topology or existing buildings
+# hp: average house price for a 4 room single family house in 2009 in CHF
+```
+
+Import Map
+```{r}
+CH <- readOGR(dsn = "~/Desktop/Assignments - Empirical Real Estate/Assignment 4", layer = "MS_Gebiete")
+```
+
+Create Weight Matrix
+```{r}
+nearest.six <- knearneigh(coordinates(CH), k = 6, RANN = FALSE) 
+nearest.six2 <- knn2nb(nearest.six) 
+W <- nb2mat(nearest.six2) # due to the boundary problems reported in exercise 4, I decided to work with a 6 k-neighbours distance matrix here.
+```
+
+Plot 
+```{r}
+color <- rev(heat.colors(106)) # rev() = reverse
+color2 <- color[rank(dat$hp)] # assign colors to house prices
+plot(CH, col = color2)
+plot(nearest.six2, coordinates(CH), col = "lightblue", add = TRUE)
+```
+
+Create Variables of interest
+```{r}
+Y <- as.matrix(dat$hp/100000) 
+
+colnames(Y) <- "HP"
+
+X <- cbind(1, dat$dlpop*100)
+colnames(X) <- c("intercept", "DLPOP")
+
+## Notice it is important to remember the transformation above when interpreting the coefficients. Now prices in 100'000 and growth rate in %. 
+```
+
+Define the likelihood function
+```{r}
+normal.lik1 <- function(theta, y, X) {
+  beta <- theta[1:2]
+  sigma <- theta[3]
+  rho <- theta[4]
+  lambda <- theta[5]
+  n <- nrow(X)
+  In <- diag(n)
+  
+  #residuals
+  
+  epsilon <- y - rho*W%*%y -X%*%beta - lambda*W%*%X[ ,2]
+  
+  #log-likelihood
+  logl <- log(det(In - rho*W)) - n/2 * log(2*pi*sigma^2) - 
+    crossprod(x = epsilon, y = epsilon)/(2*sigma^2) 
+  return(-logl)
+}
+```
+
+Insert the observed dataset and maximize the specified likelihood function for the SDM. We make use of the optim function. This optimizes by searching for a minimum. We therefore needed to multiply the defined likelihood with minus one and to return this before in order to mirror the function and search for a minimum that will correspond to the maximum of interest.
+```{r}
+fit_result <- optim(c(1,1,1,0.5, 0.5), normal.lik1, 
+                    y = Y, X = X, method = "BFGS", 
+                    control = list(maxit = 1000, trace = TRUE)) ## results converge and BFGS method successful.
+```
+
+Return the parameters that maximize the likelihood of observing the given datapoint
+```{r}
+SDM_results <- fit_result$par
+names(SDM_results) <- c("intercept", "beta1", "sigma", "rho", "lambda")
+SDM_results
+```
+
+
+Check the results through the lagsarlm function of the spdep package
+```{r}
+w.listw <- nb2listw(nearest.six2) ## convert to the required input class required by the lagsarlm function.
+
+dat$dlpop100 <- dat$dlpop*100
+
+fit.sdm <- lagsarlm(hp/100000 ~ dlpop100, w.listw, data = dat, type = "mixed")
+
+summary(fit.sdm) 
+```
+
+Compute direct and total long run marginal effect
+```{r}
+n<- rep(1, dim(W)[1])
+In <- diag(n)
+Inverse_SDM <- solve(In - SDM_results["rho"]*W) 
+SW <- Inverse_SDM*(SDM_results["beta1"]+W*SDM_results["lambda"])
+
+Marginal_direct <- 1/(dim(W)[1])*sum(diag(SW))
+Marginal_direct
+
+Marginal_total <- 1/(dim(W)[1])*t(n)%*%SW%*%n
+Marginal_total
+```
+
+
+==========================
+Interpretation SDM results
+==========================
+
+A 1% increase in the population growth will lead to 0.2730*100000 = 27300 CHF change in average house price directly. This however does not account for local spillovers to the average house prices of neighbour regions which will then affect the endougenous variable in a vicious circle. Moreover it does also not take into account the effect from the spatially lagged explainatory variables in the lambdaWX term of the spatial dubrin model. Hence taking into account these two other long-run effects the influence of a change in the growth rate will be much higher. These were computed for the seek of completeness above. It is then possible to see that taking those into account the average effect of a 1% increase in population growth is 81800 CHF.
+
+
+=========================
+Comparison with SAR model
+=========================
+
+Estimation SAR as done in class
+```{r}
+fit.sar <- lagsarlm(hp/100000 ~ dlpop100, w.listw, data = dat) ## fit SAR model
+
+summary(fit.sar) 
+
+
+## Estimation direct and total effect
+n <- 106
+In <- diag(n)
+beta <- as.matrix(fit.sar$coefficients)
+rho <- fit.sar$rho
+SW2 <- solve(In - rho*W)*beta[2]
+rownames(SW2) <- dat$MS.name
+colnames(SW2) <- dat$MS.name
+
+
+# direct and total long run impacts:
+M2.dir <- 1/n*sum(diag(SW2)) ; M2.dir
+iota <- as.matrix(rep(1,n))
+M2.tot <- 1/n*t(iota)%*%SW2%*%iota ; M2.tot
+
+
+```
+
+
+=======================
+Comparison Coefficients
+=======================
+
+The coefficients of the two models differ sensibly. While for the SDM model the direct estimated effect without accounting for spillover effects is of about 0.273 the same effect for the SAR model is of about 0.386. Moreover the difference between the two models persists in the long run and it is therefore important to control for.
+
+The difference in the coefficient estimation arise therefore due to the newly introduced exogenous spatially lagged terms that captures the interaction effect of changing the exogenous variable with the exogenous variables of the neighbouring regions. This effect was not modelled precedently and therefore the coefficient in the SAR was higher.
+
+======
+Which of the two models is preferred in terms of goodness of fit
+======
+
+The likelihood of the SDM model is of -168.062, while the one of the SAR model is of -168.563.
+
+It is difficult just based on that to judge the best model fit. The improve is marginal, nonetheless the SDM model jsut requires the estimation of a further parameter and therefore this single one is responsible for the whole change.
+
+In this sense, checking at the standard information criteria measures returned by the estimation with the spdep package, we can see that according to the AIC - which penalize the additional parameters and price the increase of explainatory power (i.e. likelihood) - the increase in explainatory power is sufficient to justify the new paramter. Therefore, according to statistical practice it makes therefore sense to use the SDM model. 
+
+This is moreover backed by economic intuition as it makes sense that a 1% increase in growth rate - a huge number - will affect the population growth rate of the neighbouring regions. Think for instance about migration. 
+
+======
+Part d
+======
+
+Step one get original estimated values
+```{r}
+
+#Parameters#
+
+n<- rep(1, dim(W)[1])
+In <- diag(n)
+rho <- fit.sdm$rho
+lambda <- fit.sdm$coefficients[3]
+beta <- as.matrix(fit.sdm$coefficients[1:2]) ## define the parameters based on the previous estimation necessary to compute the fitted values
+
+
+#Compute the fitted values#
+
+fitted <- solve(In - rho*W)%*%X%*%beta + solve(In - rho*W)%*%(lambda*W%*%X[,2]) ## solve get the inverse using the simple definition of the matrix inverse. the rest of the formula is simple the one of the standard SDM formula.
+
+```
+
+Generate the new shocked matrix and compute the theoretical fitted values
+```{r}
+X2 <- X ## generate a copy of original dataset
+
+row.names(X2) <- dat$MS.name ## define rownames to shock the matrix accordingly
+
+## Shock the matrix
+
+X2["Appenzell A.Rh.",2] <- 0.34 #  0.34% in Appenzell A.Rh.
+X2["Appenzell I.Rh.",2] <- 0.09  #  0.09% in Apenzell I.Rh.
+X2["St.Gallen",2] <- 0.78 #  0.78% in St.Gallen
+
+
+# Estimated Values #
+
+
+fitted2 <- solve(In - rho*W)%*%X2%*%beta + solve(In - rho*W)%*%(lambda*W%*%X2[,2])
+```
+
+Compute the effect vector
+```{r}
+effect <- fitted2 - fitted
+
+effect <- effect*100000 ## adjust to the original size
+```
+
+text(coordinates(CH), labels = as.character(dat1$MS.name), cex = 0.6)
+Plot the effects
+```{r}
+percent_effect = paste0(round(abs(effect)/sum(abs(effect)),2)*100, "%")
+percent_effect[percent_effect == paste0(0,"%")] <- ""
+
+color <- heat.colors(length(percent_effect[percent_effect != ""]))
+color3 <- color[rank(effect)]
+
+par(oma = c(0, 0, 2, 0))
+layout(matrix(1:2,ncol=2), width = c(2.5,1),height = c(1,1))
+plot(CH, col = color3) ## color by rank size
+text(coordinates(CH), labels = percent_effect, cex = 0.6) ## add the numbers
+legend_image <- as.raster(matrix(color, ncol=1))
+plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', 
+     main = paste0("percentage of \n total price decline, i.e. \n ",
+                   round(sum(effect), 0), " CHF"),
+     cex.main = 0.7, font.main = 1)
+rasterImage(legend_image, 0, 0, 1,1)
+text(x=1.7, y = seq(0,1,l=6), labels = paste0(seq(0, 24, by = 24/5), "%"), cex = 0.7)
+mtext("Spillover effect of population growth decline", outer = T, cex = 1, font = 2)
+
+
+```
+
+

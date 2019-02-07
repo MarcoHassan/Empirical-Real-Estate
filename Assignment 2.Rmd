@@ -1,0 +1,90 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+===================
+Hedoninc Regression
+===================
+
+Required packages
+```{r}
+library(leaflet)
+library(ggmap)
+```
+
+Download Melbourne Data
+```{r}
+dat <- read.csv("~/Desktop/Assignments - Empirical Real Estate/Assignment 2/Melbourne_housing_extra_data.csv")
+
+dat$Longtitude. <- gsub(";", "", dat$Longtitude.) # correct the semicolon at the end
+dat$Longtitude.[dat$Longtitude. == ""] <- NA 
+dat$Longtitude. <- as.numeric(dat$Longtitude.)
+```
+
+
+Download the Melbourne map
+```{r}
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles 
+  setView( lng = mean(dat$Longtitude., na.rm =T)
+            , lat = mean(dat$Lattitude, na.rm = T)
+            , zoom = 10) %>%
+  addProviderTiles(providers$CartoDB.Positron)%>%
+  setMaxBounds(lng1 = min(dat$Longtitude., na.rm = T), 
+            lat1 = min(dat$Lattitude, na.rm = T), 
+            lng2 = max(dat$Longtitude., na.rm = T), 
+            lat2 = max(dat$Lattitude, na.rm = T))## add extreme points of dataset
+
+```
+
+Plot properties
+```{r}
+help <- colorQuantile("YlOrRd", NULL, na.color = "transparent", n =9)
+
+m %>% addCircles(lng = dat$Longtitude., lat = dat$Lattitude, 
+                 color = help(dat$Price), fillColor = help(dat$Price), fillOpacity = 1) %>%
+      addLegend("topright",  # location
+            pal=help,    # palette function
+            values= dat$Price,  
+            title = "Price Percentiles") 
+```
+
+
+Hedonic Regression
+```{r}
+Ols <- lm(log(Price) ~ Rooms + Landsize + Type + YearBuilt + Bedroom2 + Distance +  
+            Bathroom, data = dat)
+
+summary(Ols)
+
+Ols_2 <- lm(log(Price) ~ log(Rooms) + Landsize + I(Landsize**2) + Type + YearBuilt +
+            I(YearBuilt**2) + Bedroom2 + I(Bedroom2**2) + Distance + I(Distance**2) + 
+            Bathroom, data = dat) 
+
+#From previous map possible to see Distance = dist from City center
+
+##Add interpretation of results; notice also R**2 increased.
+
+summary(Ols_2)
+
+par(mfrow=c(2,2))
+plot(Ols, which = 1:2)
+plot(Ols_2, which = 1:2) 
+
+## The plots show how the residuals and the independent variables are in fact orthogonal to each other in the expectation vector space. Conditioning on all the information given by the independents -captured in our fitted values- the expectation of the residuals is in fact zero.
+
+## The second graph plots the distribution of the residuals. Here is clear that the normality assumptions of the residuals is violated in the first regression that does not account for non-linear effects. Including non-linear effects we approximate better the normality assumption.
+#Notice that the violation of the normality assumption is less problematic for the estimation of the regression BLUE coefficients but rather important for the confidence intervals.
+
+par(mfrow=c(1,2))
+plot(Ols, which = 3)
+plot(Ols_2, which = 3) 
+
+## Also the assumption of Homoskedasticity seems to be problematic as with higher values of the fitted values (which depends jsut but on the independent variables), we have higher error terms.
+#In this current the heteroskedastic consistent tests for the coefficent is skipped due to the high significance of the regressors. Caution in interpretation of the latter is required nonetheless.
+
+```
+
+
+
