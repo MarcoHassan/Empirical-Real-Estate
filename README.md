@@ -49,7 +49,7 @@ Given a map in .shp format available in this repository and a dataset for the di
 ![image](https://user-images.githubusercontent.com/42472072/52441579-b1506400-2b29-11e9-9987-b6c078145e42.png)
 
 
-Based on this I manually programmed a spatial autocorrelated model and I calculated the effect of an exogenous effect of a population growth shift in some northern eastern canton.
+Based on this I manually programmed a spatial autocorrelated model and I calculated the effect of an exogenous effect of a population growth shift in some north eastern canton.
 
 I plotted subsequently the spillover effect of such a growth rate shift in the region.
 
