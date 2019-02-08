@@ -43,7 +43,7 @@ Contains standard panel regression controlling for time fixed effects and state 
 
 # Assignment 4
 
-Given a map in .shp format available uploaded in the directory and a dataset for the different swiss cantons I modelled a knn-neighbour model to capture the spatial deopendencies in for spillover effects among the regions.
+Given a map in .shp format available in this repository and a dataset for the different swiss cantons I modelled a knn-neighbour model to model in a subsequent step the spatial deopendencies in for spillover effects among the regions.
 
 
 ![image](https://user-images.githubusercontent.com/42472072/52441579-b1506400-2b29-11e9-9987-b6c078145e42.png)
